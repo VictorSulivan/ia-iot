@@ -2,6 +2,11 @@
 """Capture MPU6050 gesture trials over serial for ML training.
 
 Protocol: send 's' -> receive 200 lines of ax,ay,az,gx,gy,gz -> DONE.
+
+Layout: one CSV per gesture label (append trials):
+  data/raw/lateral.csv
+  data/raw/horizontal.csv
+  data/raw/circle.csv
 """
 
 from __future__ import annotations
@@ -18,6 +23,7 @@ NUM_SAMPLES = 200
 INTERVAL_MS = 30
 BAUD = 115200
 DONE_TOKEN = "DONE"
+DEFAULT_TARGET_TRIALS = 200
 CSV_COLUMNS = (
     "sample_index",
     "timestamp_ms",
@@ -48,6 +54,10 @@ def _require_serial():
 
 def default_output_dir() -> Path:
     return Path(__file__).resolve().parent.parent / "data" / "raw"
+
+
+def label_csv_path(output_dir: Path, label: str) -> Path:
+    return output_dir / f"{label}.csv"
 
 
 def list_serial_ports() -> list[str]:
@@ -171,24 +181,49 @@ def capture_trial(ser, label: str, trial_id: str, session: str) -> list[dict]:
     return rows
 
 
-def next_trial_id(label_dir: Path, label: str) -> str:
-    existing = sorted(label_dir.glob(f"{label}_trial_*.csv"))
+def count_trials_in_csv(path: Path) -> int:
+    """Nombre d'essais distincts déjà présents dans le CSV du label."""
+    if not path.exists() or path.stat().st_size == 0:
+        return 0
+    trial_ids: set[str] = set()
+    with path.open(newline="", encoding="utf-8") as f:
+        reader = csv.DictReader(f)
+        if not reader.fieldnames or "trial_id" not in reader.fieldnames:
+            return 0
+        for row in reader:
+            tid = (row.get("trial_id") or "").strip()
+            if tid:
+                trial_ids.add(tid)
+    return len(trial_ids)
+
+
+def next_trial_number(path: Path, label: str) -> int:
+    """Prochain numéro d'essai (1-based), basé sur les trial_id existants."""
+    if not path.exists() or path.stat().st_size == 0:
+        return 1
     max_n = 0
-    for path in existing:
-        stem = path.stem  # lateral_trial_003
-        try:
-            n = int(stem.rsplit("_", 1)[-1])
-        except ValueError:
-            continue
-        max_n = max(max_n, n)
-    return f"{max_n + 1:03d}"
+    with path.open(newline="", encoding="utf-8") as f:
+        reader = csv.DictReader(f)
+        if not reader.fieldnames or "trial_id" not in reader.fieldnames:
+            return 1
+        for row in reader:
+            tid = (row.get("trial_id") or "").strip()
+            # Formats acceptés: "001", "lateral_001"
+            suffix = tid.rsplit("_", 1)[-1] if tid else ""
+            try:
+                max_n = max(max_n, int(suffix))
+            except ValueError:
+                continue
+    return max_n + 1
 
 
-def write_csv(path: Path, rows: list[dict]) -> None:
+def append_csv(path: Path, rows: list[dict]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("w", newline="", encoding="utf-8") as f:
+    write_header = not path.exists() or path.stat().st_size == 0
+    with path.open("a", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=CSV_COLUMNS)
-        writer.writeheader()
+        if write_header:
+            writer.writeheader()
         writer.writerows(rows)
 
 
@@ -215,7 +250,10 @@ def prompt_label(default: str | None = None) -> str | None:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Capture de gestes MPU6050 (lateral / horizontal / circle) vers CSV."
+        description=(
+            "Capture de gestes MPU6050 vers un CSV par label "
+            "(lateral.csv / horizontal.csv / circle.csv)."
+        )
     )
     parser.add_argument(
         "--port",
@@ -236,13 +274,22 @@ def parse_args() -> argparse.Namespace:
         "--output-dir",
         type=Path,
         default=default_output_dir(),
-        help="Répertoire racine des CSV (défaut: data/raw/)",
+        help="Répertoire des CSV (défaut: data/raw/)",
     )
     parser.add_argument(
         "--countdown",
         type=int,
         default=3,
         help="Compte à rebours avant capture (secondes, défaut: 3)",
+    )
+    parser.add_argument(
+        "--target-trials",
+        type=int,
+        default=DEFAULT_TARGET_TRIALS,
+        help=(
+            f"Objectif d'essais par label (défaut: {DEFAULT_TARGET_TRIALS}). "
+            "Affiché en progression ; 0 = pas d'objectif."
+        ),
     )
     parser.add_argument(
         "--once",
@@ -255,6 +302,17 @@ def parse_args() -> argparse.Namespace:
         help="Lister les ports série et quitter",
     )
     return parser.parse_args()
+
+
+def print_label_progress(output_dir: Path, target: int) -> None:
+    print("Progression par label:")
+    for label in LABELS:
+        path = label_csv_path(output_dir, label)
+        n = count_trials_in_csv(path)
+        if target > 0:
+            print(f"  {label:11s} {n}/{target} essais → {path.name}")
+        else:
+            print(f"  {label:11s} {n} essais → {path.name}")
 
 
 def main() -> int:
@@ -271,7 +329,9 @@ def main() -> int:
 
     port = resolve_port(args.port)
     output_dir: Path = args.output_dir
+    output_dir.mkdir(parents=True, exist_ok=True)
     session = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    target = max(0, args.target_trials)
 
     serial, _ = _require_serial()
     print(f"Connexion à {port} @ {args.baud}…")
@@ -283,7 +343,13 @@ def main() -> int:
 
     print(f"Session: {session}")
     print(f"Sortie:  {output_dir.resolve()}")
-    print("Layout:  data/raw/<label>/<label>_trial_NNN.csv  (1 fichier = 1 essai)")
+    print("Layout:  data/raw/<label>.csv  (1 fichier par geste, essais ajoutés en append)")
+    print(
+        f"Chaque essai = {NUM_SAMPLES} échantillons (~{NUM_SAMPLES * INTERVAL_MS / 1000:.0f} s)."
+    )
+    if target > 0:
+        print(f"Objectif: {target} essais (mouvements) par geste.")
+    print_label_progress(output_dir, target)
 
     last_label = args.label
     captures = 0
@@ -295,14 +361,23 @@ def main() -> int:
                 break
             last_label = label
 
-            label_dir = output_dir / label
-            label_dir.mkdir(parents=True, exist_ok=True)
-            trial_num = next_trial_id(label_dir, label)
-            trial_id = f"{label}_{trial_num}"
-            out_path = label_dir / f"{label}_trial_{trial_num}.csv"
+            out_path = label_csv_path(output_dir, label)
+            done = count_trials_in_csv(out_path)
+            if target > 0 and done >= target:
+                print(
+                    f"{label}: objectif déjà atteint ({done}/{target}). "
+                    "Choisissez un autre label ou q."
+                )
+                if args.once:
+                    break
+                continue
+
+            trial_num = next_trial_number(out_path, label)
+            trial_id = f"{label}_{trial_num:03d}"
+            progress = f"{done + 1}/{target}" if target > 0 else f"#{trial_num}"
 
             print()
-            print(f">>> Capture {label} | trial {trial_num} | fichier {out_path.name}")
+            print(f">>> Capture {label} | essai {progress} | → {out_path.name}")
             print("Préparez-vous à effectuer le geste.")
             countdown(max(0, args.countdown))
 
@@ -317,9 +392,16 @@ def main() -> int:
                     continue
                 continue
 
-            write_csv(out_path, rows)
+            append_csv(out_path, rows)
             captures += 1
-            print(f"OK — {len(rows)} échantillons → {out_path}")
+            total = count_trials_in_csv(out_path)
+            print(
+                f"OK — {len(rows)} échantillons ajoutés → {out_path} "
+                f"({total}" + (f"/{target}" if target > 0 else "") + " essais)"
+            )
+
+            if target > 0 and total >= target:
+                print(f"Objectif atteint pour {label} ({total}/{target}).")
 
             if args.once:
                 break
@@ -328,7 +410,9 @@ def main() -> int:
     finally:
         ser.close()
 
-    print(f"Terminé. {captures} essai(s) enregistré(s).")
+    print()
+    print_label_progress(output_dir, target)
+    print(f"Terminé. {captures} essai(s) ajouté(s) cette session.")
     return 0
 
 
