@@ -24,7 +24,7 @@ Sketch : [`arduino/mpu6050_capture/mpu6050_capture.ino`](arduino/mpu6050_capture
 3. Sélectionner la bonne carte / port
 4. Flasher
 
-**Protocole série (115200 baud)** : l’hôte envoie `s` → la carte envoie 200 lignes `ax,ay,az,gx,gy,gz` (1 toutes les 30 ms, ~6 s) → puis `DONE`.
+**Protocole série (115200 baud)** : l’hôte envoie `s` → la carte envoie **75** lignes `ax,ay,az,gx,gy,gz` à **50 Hz** (1 toutes les 20 ms, **1,5 s**) → puis `DONE`.
 
 ## Capture Python
 
@@ -62,10 +62,10 @@ python python/capture_motions.py --list-ports
 1. Brancher l’Arduino déjà flashé
 2. Lancer le script
 3. Choisir le label (`1` / `2` / `3` ou nom)
-4. Compte à rebours → effectuer le geste pendant ~6 s
-5. Les 200 échantillons sont **ajoutés** au CSV du label ; recommencer jusqu’à 200 essais, puis `q`
+4. Compte à rebours → effectuer le geste pendant **1,5 s**
+5. Les **75** échantillons (50 Hz) sont **ajoutés** au CSV du label ; recommencer jusqu’à 200 essais, puis `q`
 
-Objectif : **200 mouvements (essais) par geste**, chacun = 200 échantillons IMU.
+Objectif : **200 mouvements (essais) par geste**, chacun = **75** échantillons IMU (50 Hz × 1,5 s).
 
 ## Layout CSV
 
@@ -73,19 +73,19 @@ Objectif : **200 mouvements (essais) par geste**, chacun = 200 échantillons IMU
 
 ```text
 data/raw/
-  vertical.csv      # jusqu’à 200 essais × 200 lignes
+  vertical.csv      # jusqu’à 200 essais × 75 lignes
   horizontal.csv
   circle.csv
 ```
 
-Chaque essai ajoute 200 lignes ; la colonne `trial_id` (ex. `vertical_001`) sépare les mouvements.
+Chaque essai ajoute 75 lignes ; la colonne `trial_id` (ex. `vertical_001`) sépare les mouvements.
 
 ### Schéma des colonnes
 
 | Colonne         | Description                                      |
 |-----------------|--------------------------------------------------|
-| `sample_index`  | 0 … 199 dans l’essai                             |
-| `timestamp_ms`  | Temps relatif (`sample_index * 30`)              |
+| `sample_index`  | 0 … 74 dans l’essai                              |
+| `timestamp_ms`  | Temps relatif (`sample_index * 20`)              |
 | `ax` … `gz`     | Accéléromètre / gyroscope bruts (int16)          |
 | `label`         | `vertical` \| `horizontal` \| `circle`            |
 | `trial_id`      | Identifiant d’essai, ex. `vertical_001`           |
