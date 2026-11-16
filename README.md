@@ -2,7 +2,7 @@
 
 Outil de collecte de données IMU (Arduino + MPU6050) pour entraîner un classificateur de mouvements :
 
-- `lateral` — mouvement latéral
+- `vertical` — mouvement vertical
 - `horizontal` — mouvement horizontal
 - `circle` — cercle
 
@@ -48,7 +48,7 @@ python python/capture_motions.py --port /dev/ttyUSB0  # Linux
 python python/capture_motions.py --port /dev/cu.usbserial-XXXX  # macOS
 
 # Un seul essai d’une classe
-python python/capture_motions.py --label lateral --once
+python python/capture_motions.py --label vertical --once
 
 # Objectif d’essais par geste (défaut: 200)
 python python/capture_motions.py --target-trials 200
@@ -73,12 +73,12 @@ Objectif : **200 mouvements (essais) par geste**, chacun = 200 échantillons IMU
 
 ```text
 data/raw/
-  lateral.csv      # jusqu’à 200 essais × 200 lignes
+  vertical.csv      # jusqu’à 200 essais × 200 lignes
   horizontal.csv
   circle.csv
 ```
 
-Chaque essai ajoute 200 lignes ; la colonne `trial_id` (ex. `lateral_001`) sépare les mouvements.
+Chaque essai ajoute 200 lignes ; la colonne `trial_id` (ex. `vertical_001`) sépare les mouvements.
 
 ### Schéma des colonnes
 
@@ -87,8 +87,8 @@ Chaque essai ajoute 200 lignes ; la colonne `trial_id` (ex. `lateral_001`) sépa
 | `sample_index`  | 0 … 199 dans l’essai                             |
 | `timestamp_ms`  | Temps relatif (`sample_index * 30`)              |
 | `ax` … `gz`     | Accéléromètre / gyroscope bruts (int16)          |
-| `label`         | `lateral` \| `horizontal` \| `circle`            |
-| `trial_id`      | Identifiant d’essai, ex. `lateral_001`           |
+| `label`         | `vertical` \| `horizontal` \| `circle`            |
+| `trial_id`      | Identifiant d’essai, ex. `vertical_001`           |
 | `session`       | Horodatage UTC de la session (`YYYYMMDDTHHMMSSZ`)|
 
 Pas de code d’entraînement dans ce dépôt pour l’instant — capture + export CSV uniquement.

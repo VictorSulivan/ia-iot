@@ -4,7 +4,7 @@
 Protocol: send 's' -> receive 200 lines of ax,ay,az,gx,gy,gz -> DONE.
 
 Layout: one CSV per gesture label (append trials):
-  data/raw/lateral.csv
+  data/raw/vertical.csv
   data/raw/horizontal.csv
   data/raw/circle.csv
 """
@@ -18,7 +18,7 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 
-LABELS = ("lateral", "horizontal", "circle")
+LABELS = ("vertical", "horizontal", "circle")
 NUM_SAMPLES = 200
 INTERVAL_MS = 30
 BAUD = 115200
@@ -208,7 +208,7 @@ def next_trial_number(path: Path, label: str) -> int:
             return 1
         for row in reader:
             tid = (row.get("trial_id") or "").strip()
-            # Formats acceptés: "001", "lateral_001"
+            # Formats acceptés: "001", "vertical_001"
             suffix = tid.rsplit("_", 1)[-1] if tid else ""
             try:
                 max_n = max(max_n, int(suffix))
@@ -229,7 +229,7 @@ def append_csv(path: Path, rows: list[dict]) -> None:
 
 def prompt_label(default: str | None = None) -> str | None:
     print()
-    print("Labels: 1=lateral  2=horizontal  3=circle  q=quitter")
+    print("Labels: 1=vertical  2=horizontal  3=circle  q=quitter")
     if default:
         prompt = f"Choix [{default}]: "
     else:
@@ -239,7 +239,7 @@ def prompt_label(default: str | None = None) -> str | None:
         return None
     if not choice and default:
         return default
-    mapping = {"1": "lateral", "2": "horizontal", "3": "circle"}
+    mapping = {"1": "vertical", "2": "horizontal", "3": "circle"}
     if choice in mapping:
         return mapping[choice]
     if choice in LABELS:
@@ -252,7 +252,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
             "Capture de gestes MPU6050 vers un CSV par label "
-            "(lateral.csv / horizontal.csv / circle.csv)."
+            "(vertical.csv / horizontal.csv / circle.csv)."
         )
     )
     parser.add_argument(
