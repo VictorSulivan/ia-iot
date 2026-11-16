@@ -50,6 +50,9 @@ python python/capture_motions.py --port /dev/cu.usbserial-XXXX  # macOS
 # Un seul essai d’une classe
 python python/capture_motions.py --label lateral --once
 
+# Objectif d’essais par geste (défaut: 200)
+python python/capture_motions.py --target-trials 200
+
 # Lister les ports
 python python/capture_motions.py --list-ports
 ```
@@ -60,30 +63,28 @@ python python/capture_motions.py --list-ports
 2. Lancer le script
 3. Choisir le label (`1` / `2` / `3` ou nom)
 4. Compte à rebours → effectuer le geste pendant ~6 s
-5. Le CSV est écrit ; recommencer ou `q` pour quitter
+5. Les 200 échantillons sont **ajoutés** au CSV du label ; recommencer jusqu’à 200 essais, puis `q`
 
-Objectif typique : **plusieurs essais par classe** (ex. 20–50) pour avoir assez de données d’entraînement.
+Objectif : **200 mouvements (essais) par geste**, chacun = 200 échantillons IMU.
 
-## Layout CSV (ML-friendly)
+## Layout CSV
 
-Un fichier **par essai** :
+**Un fichier par geste** (tous les essais du même label sont appendés dedans) :
 
 ```text
 data/raw/
-  lateral/
-    lateral_trial_001.csv
-    lateral_trial_002.csv
-  horizontal/
-    horizontal_trial_001.csv
-  circle/
-    circle_trial_001.csv
+  lateral.csv      # jusqu’à 200 essais × 200 lignes
+  horizontal.csv
+  circle.csv
 ```
+
+Chaque essai ajoute 200 lignes ; la colonne `trial_id` (ex. `lateral_001`) sépare les mouvements.
 
 ### Schéma des colonnes
 
 | Colonne         | Description                                      |
 |-----------------|--------------------------------------------------|
-| `sample_index`  | 0 … 199                                          |
+| `sample_index`  | 0 … 199 dans l’essai                             |
 | `timestamp_ms`  | Temps relatif (`sample_index * 30`)              |
 | `ax` … `gz`     | Accéléromètre / gyroscope bruts (int16)          |
 | `label`         | `lateral` \| `horizontal` \| `circle`            |
