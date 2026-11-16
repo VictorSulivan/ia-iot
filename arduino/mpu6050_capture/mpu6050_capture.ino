@@ -10,6 +10,8 @@
  *   Device streams NUM_SAMPLES lines: ax,ay,az,gx,gy,gz
  *   Device ends with: DONE
  *
+ * Capture window: 50 Hz for 1.5 s => 75 samples (20 ms interval)
+ *
  * Library: Electronic Cats MPU6050 (or equivalent MPU6050.h)
  */
 
@@ -20,8 +22,8 @@ MPU6050 mpu;
 
 const int SDA_PIN = 8;
 const int SCL_PIN = 9;
-const int NUM_SAMPLES = 200;
-const int INTERVAL_MS = 30; // ~6 s per capture
+const int NUM_SAMPLES = 75;   // 50 Hz * 1.5 s
+const int INTERVAL_MS = 20;   // 1000 / 50
 
 void setup() {
   Serial.begin(115200);

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Capture MPU6050 gesture trials over serial for ML training.
 
-Protocol: send 's' -> receive 200 lines of ax,ay,az,gx,gy,gz -> DONE.
+Protocol: send 's' -> receive 75 lines of ax,ay,az,gx,gy,gz (50 Hz, 1.5 s) -> DONE.
 
 Layout: one CSV per gesture label (append trials):
   data/raw/vertical.csv
@@ -19,8 +19,10 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 LABELS = ("vertical", "horizontal", "circle")
-NUM_SAMPLES = 200
-INTERVAL_MS = 30
+SAMPLE_RATE_HZ = 50
+CAPTURE_DURATION_S = 1.5
+NUM_SAMPLES = int(SAMPLE_RATE_HZ * CAPTURE_DURATION_S)  # 75
+INTERVAL_MS = int(1000 / SAMPLE_RATE_HZ)  # 20
 BAUD = 115200
 DONE_TOKEN = "DONE"
 DEFAULT_TARGET_TRIALS = 200
@@ -163,7 +165,7 @@ def capture_trial(ser, label: str, trial_id: str, session: str) -> list[dict]:
             }
         )
 
-    # Consommer DONE s'il arrive après les 200 lignes
+    # Consommer DONE s'il arrive après les N lignes
     if len(rows) == NUM_SAMPLES:
         leftover_deadline = time.monotonic() + 2.0
         while time.monotonic() < leftover_deadline:
@@ -345,7 +347,8 @@ def main() -> int:
     print(f"Sortie:  {output_dir.resolve()}")
     print("Layout:  data/raw/<label>.csv  (1 fichier par geste, essais ajoutés en append)")
     print(
-        f"Chaque essai = {NUM_SAMPLES} échantillons (~{NUM_SAMPLES * INTERVAL_MS / 1000:.0f} s)."
+        f"Chaque essai = {NUM_SAMPLES} échantillons "
+        f"({SAMPLE_RATE_HZ} Hz, {CAPTURE_DURATION_S} s)."
     )
     if target > 0:
         print(f"Objectif: {target} essais (mouvements) par geste.")
