@@ -99,30 +99,38 @@ cp vertical.csv horizontal.csv circle.csv /chemin/vers/ia-iot/data/raw/
 git add data/raw/*.csv && git commit -m "Add gesture training CSVs" && git push
 ```
 
-## Notebooks ML (reconnaissance de gestes)
+## Reconnaissance live (objectif)
 
-Pipeline Jupyter pour distinguer les 3 classes :
+Après capture des CSV, le flux nominal est :
+
+1. **Entraîner** un modèle sur `data/raw/*.csv`
+2. **Prédire en live** : le script capture 1,5 s via le MPU6050 et affiche `VERTICAL` / `HORIZONTAL` / `ROND`
+
+```bash
+pip install -r requirements.txt
+
+# (re)entraîner — écrit artifacts/gesture_classifier.joblib
+python python/train_model.py
+
+# classification live (Arduino flashé + branché)
+python python/predict_live.py --port COM3          # Windows
+python python/predict_live.py --port /dev/ttyUSB0  # Linux
+```
+
+`predict_live.py` : compte à rebours → envoie `s` → 75 échantillons → features → prédiction (+ probabilités). Boucle jusqu’à Ctrl+C (`--once` pour une seule prise).
+
+Un modèle pré-entraîné (RandomForest, ~97 % test sur les 600 essais) est versionné dans `artifacts/`. Relancer `train_model.py` si vous ajoutez des données.
+
+## Notebooks ML (exploration / évaluation)
 
 | Notebook | Rôle |
 |----------|------|
-| [`notebooks/01_eda.ipynb`](notebooks/01_eda.ipynb) | Exploration : essais, fréquences, plots, stats, équilibre |
-| [`notebooks/02_train_eval.ipynb`](notebooks/02_train_eval.ipynb) | Features par essai, RandomForest / SVM / logreg, split par `trial_id`, métriques, export modèle |
+| [`notebooks/01_eda.ipynb`](notebooks/01_eda.ipynb) | Exploration : essais, fréquences, plots, stats |
+| [`notebooks/02_train_eval.ipynb`](notebooks/02_train_eval.ipynb) | Comparaison modèles + métriques détaillées |
 
-Helper partagé : [`python/gesture_dataset.py`](python/gesture_dataset.py).
-
-### Lancer les notebooks
+Helper : [`python/gesture_dataset.py`](python/gesture_dataset.py). Scripts CLI : [`python/train_model.py`](python/train_model.py), [`python/predict_live.py`](python/predict_live.py).
 
 ```bash
-python -m venv .venv
-source .venv/bin/activate   # Windows: .venv\Scripts\activate
-pip install -r requirements.txt
-
-# Depuis la racine du dépôt (recommandé)
 jupyter notebook notebooks/01_eda.ipynb
 jupyter notebook notebooks/02_train_eval.ipynb
-# ou : jupyter lab
 ```
-
-Les notebooks détectent automatiquement s’ils sont ouverts depuis `notebooks/` ou la racine. Sans les trois CSV dans `data/raw/`, le chargement lève une erreur explicite.
-
-Le modèle entraîné est écrit sous `artifacts/` (ignoré par git, sauf `.gitkeep`).

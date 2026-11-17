@@ -153,3 +153,49 @@ def feature_matrix(features: pd.DataFrame) -> tuple[pd.DataFrame, pd.Series, pd.
     y = features["label"].copy()
     groups = features["trial_id"].copy()
     return X, y, groups
+
+
+def samples_to_dataframe(
+    rows: list[dict],
+    *,
+    label: str = "unknown",
+    trial_id: str = "live_001",
+) -> pd.DataFrame:
+    """Convertit une liste d'échantillons (dict ax..gz) en DataFrame compatible features."""
+    if not rows:
+        raise ValueError("Aucun échantillon fourni")
+    records = []
+    for i, row in enumerate(rows):
+        records.append(
+            {
+                "sample_index": int(row.get("sample_index", i)),
+                "timestamp_ms": int(row.get("timestamp_ms", i * int(1000 / SAMPLE_RATE_HZ))),
+                "ax": int(row["ax"]),
+                "ay": int(row["ay"]),
+                "az": int(row["az"]),
+                "gx": int(row["gx"]),
+                "gy": int(row["gy"]),
+                "gz": int(row["gz"]),
+                "label": label,
+                "trial_id": trial_id,
+                "session": row.get("session", "live"),
+            }
+        )
+    return pd.DataFrame.from_records(records)
+
+
+def feature_vector_from_samples(
+    rows: list[dict],
+    feature_columns: list[str] | None = None,
+) -> pd.DataFrame:
+    """Une ligne de features pour un essai live (colonnes alignées si fournies)."""
+    df = samples_to_dataframe(rows)
+    feats = extract_trial_features(df)
+    meta = {"label", "trial_id"}
+    X = feats.drop(columns=[c for c in meta if c in feats.columns])
+    if feature_columns is not None:
+        missing = [c for c in feature_columns if c not in X.columns]
+        if missing:
+            raise ValueError(f"Features manquantes pour l'inférence: {missing}")
+        X = X[feature_columns]
+    return X

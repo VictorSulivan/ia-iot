@@ -7,3 +7,5 @@ __pycache__/
 .ipynb_checkpoints/
 artifacts/*
 !artifacts/.gitkeep
+!artifacts/gesture_classifier.joblib
+!artifacts/gesture_classifier_meta.json
