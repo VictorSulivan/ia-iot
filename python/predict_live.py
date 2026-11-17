@@ -104,6 +104,10 @@ def main() -> int:
         f"Capture : {EXPECTED_SAMPLES_PER_TRIAL} samples @ {SAMPLE_RATE_HZ} Hz "
         f"({CAPTURE_DURATION_S} s)"
     )
+    print(
+        "Astuce rond : geste ample et continu pendant tout le 1,5 s "
+        "(un cercle complet, pas un demi-arc)."
+    )
 
     port = resolve_port(args.port)
     print(f"Connexion {port} @ {args.baud}…")

@@ -119,7 +119,14 @@ python python/predict_live.py --port /dev/ttyUSB0  # Linux
 
 `predict_live.py` : compte à rebours → envoie `s` → 75 échantillons → features → prédiction (+ probabilités). Boucle jusqu’à Ctrl+C (`--once` pour une seule prise).
 
-Un modèle pré-entraîné (RandomForest, ~97 % test sur les 600 essais) est versionné dans `artifacts/`. Relancer `train_model.py` si vous ajoutez des données.
+**Astuce pour le rond :** faire un cercle **ample et continu** pendant les 1,5 s (idéalement un tour complet). Un demi-arc ressemble souvent à un horizontal pour le modèle.
+
+Un modèle pré-entraîné est versionné dans `artifacts/`. Après ajout de données (surtout de nouveaux cercles) :
+
+```bash
+python python/train_model.py
+```
+
 
 ## Notebooks ML (exploration / évaluation)
 
