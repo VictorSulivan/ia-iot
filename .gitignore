@@ -4,5 +4,6 @@ __pycache__/
 .Python
 *.egg-info/
 .DS_Store
-data/raw/**/*.csv
-!data/raw/.gitkeep
+.ipynb_checkpoints/
+artifacts/*
+!artifacts/.gitkeep

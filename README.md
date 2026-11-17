@@ -91,4 +91,38 @@ Chaque essai ajoute 75 lignes ; la colonne `trial_id` (ex. `vertical_001`) sépa
 | `trial_id`      | Identifiant d’essai, ex. `vertical_001`           |
 | `session`       | Horodatage UTC de la session (`YYYYMMDDTHHMMSSZ`)|
 
-Pas de code d’entraînement dans ce dépôt pour l’instant — capture + export CSV uniquement.
+Les CSV d’entraînement **doivent être commités** dans `data/raw/` (ils ne sont plus ignorés par git). Si vous avez déjà capturé localement, copiez simplement :
+
+```bash
+# depuis la machine de capture
+cp vertical.csv horizontal.csv circle.csv /chemin/vers/ia-iot/data/raw/
+git add data/raw/*.csv && git commit -m "Add gesture training CSVs" && git push
+```
+
+## Notebooks ML (reconnaissance de gestes)
+
+Pipeline Jupyter pour distinguer les 3 classes :
+
+| Notebook | Rôle |
+|----------|------|
+| [`notebooks/01_eda.ipynb`](notebooks/01_eda.ipynb) | Exploration : essais, fréquences, plots, stats, équilibre |
+| [`notebooks/02_train_eval.ipynb`](notebooks/02_train_eval.ipynb) | Features par essai, RandomForest / SVM / logreg, split par `trial_id`, métriques, export modèle |
+
+Helper partagé : [`python/gesture_dataset.py`](python/gesture_dataset.py).
+
+### Lancer les notebooks
+
+```bash
+python -m venv .venv
+source .venv/bin/activate   # Windows: .venv\Scripts\activate
+pip install -r requirements.txt
+
+# Depuis la racine du dépôt (recommandé)
+jupyter notebook notebooks/01_eda.ipynb
+jupyter notebook notebooks/02_train_eval.ipynb
+# ou : jupyter lab
+```
+
+Les notebooks détectent automatiquement s’ils sont ouverts depuis `notebooks/` ou la racine. Sans les trois CSV dans `data/raw/`, le chargement lève une erreur explicite.
+
+Le modèle entraîné est écrit sous `artifacts/` (ignoré par git, sauf `.gitkeep`).
